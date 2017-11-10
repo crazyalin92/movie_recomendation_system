@@ -5,7 +5,6 @@
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import org.apache.spark.mllib.recommendation.{ALS, MatrixFactorizationModel, Rating}
 
@@ -14,7 +13,6 @@ object MovieLensALS {
   def main(args: Array[String]) {
 
     // set up environment
-
     val conf = new SparkConf()
       .setAppName("MovieLensALS")
       .set("spark.executor.memory", "2g")
@@ -22,23 +20,22 @@ object MovieLensALS {
     val sc = new SparkContext(conf)
 
     // load ratings and movie titles
+    val movieLensHomeDir = args(0)
 
-    val movieLensHomeDir = "F:\\SparkData\\movielens\\medium\\"
-
-    //RATINGS
+    //Load Ratings
     val ratings = sc.textFile(movieLensHomeDir + "ratings.dat").map { line =>
       val fields = line.split("::")
       // format: (timestamp % 10, Rating(userId, movieId, rating))
       (fields(3).toLong % 10, Rating(fields(0).toInt, fields(1).toInt, fields(2).toDouble))
     }
-    //MOVIES
+    //Load Movies
     val movies = sc.textFile(movieLensHomeDir + "movies.dat").map { line =>
       val fields = line.split("::")
       // format: (movieId, movieName)
       (fields(0).toInt, fields(1))
     }.collect.toMap
 
-    //MY RATING
+    //Load my ratings
     val myRating = sc.textFile(movieLensHomeDir + "personalRatings.txt").map { line =>
       val fields = line.split("::")
       Rating(fields(0).toInt, fields(1).toInt, fields(2).toDouble)
@@ -109,12 +106,11 @@ object MovieLensALS {
 
 
     // make personalized recommendations
-
     val myRatedMovieIds = myRating.map(t => t.product)
 
     val candidates = sc.parallelize(movies
       .filterKeys(key => myRatedMovieIds.filter(t => t == key).count() == 0)
-        .map(m => m._1).toSeq)
+      .map(m => m._1).toSeq)
 
     val recommendations = bestModel.get
       .predict(candidates.map((0, _)))
@@ -130,7 +126,6 @@ object MovieLensALS {
     }
 
     sc.stop()
-
   }
 
   /** Compute RMSE (Root Mean Squared Error). */
@@ -141,5 +136,4 @@ object MovieLensALS {
       .values
     math.sqrt(predictionsAndRatings.map(x => (x._1 - x._2) * (x._1 - x._2)).reduce(_ + _) / n)
   }
-
 }
